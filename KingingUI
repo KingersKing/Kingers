@@ -382,7 +382,7 @@ spawn(function()
                 local moveDirection = character.Humanoid.MoveDirection
                 if moveDirection.Magnitude > 0 then
                     -- Calculate the speed and direction
-                    local teleportDistance = moveDirection.Unit * (SpeedModifier / 9) -- Adjust increment size for smoother movement
+                    local teleportDistance = moveDirection.Unit * (SpeedModifier / 7) -- Adjust increment size for smoother movement
                     hrp.CFrame = hrp.CFrame + teleportDistance
                 end
             end
