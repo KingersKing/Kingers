@@ -493,5 +493,45 @@ local function lockOnClosestPlayer()
     end
 end
 
+
+local Tab = Window:Tab({
+	Name = "Others",
+	Icon = "rbxassetid://11476626403",
+	Color = Color3.new(0.474509, 0.474509, 0.474509)
+})
+
+local Section9 = Tab:Section({
+	Name = "Miscs"
+})
+
+local Button = Section9:Button({
+	Name = "Destroy library",
+	Callback = function()
+		Library:Destroy()
+	end
+})
+
+local Button = Section9:Button({
+	Name = "Hide UI",
+	Callback = function()
+		Window:Toggled(false)
+		
+		task.wait(3)
+		
+		Window:Toggled(true)
+	end
+})
+
+local Button = Section9:Button({
+	Name = "Task Bar Only",
+	Callback = function()
+		Window:TaskBarOnly(true)
+
+		task.wait(3)
+
+		Window:TaskBarOnly(false)
+	end
+})
+
 game:GetService("RunService").RenderStepped:Connect(lockOnClosestPlayer)
 game.Workspace.Structure.Killpart:Destroy()
