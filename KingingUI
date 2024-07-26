@@ -1,0 +1,496 @@
+local Library = loadstring(game:HttpGet('https://raw.githubusercontent.com/Loco-CTO/UI-Library/main/VisionLibV2/source.lua'))()
+
+local Window = Library:Create({
+    Name = "Kings UI",
+    Footer = "By the Kingers",
+    ToggleKey = Enum.KeyCode.LeftControl,
+    LoadedCallback = function()
+        Window:TaskBarOnly(false)
+    end,
+    KeySystem = false,
+    Key = "Kingers",
+    MaxAttempts = 5,
+    DiscordLink = nil,
+})
+
+Window:ChangeTogglekey(Enum.KeyCode.LeftControl)
+
+local Tab = Window:Tab({
+    Name = "Kinging",
+    Icon = "rbxassetid://11396131982",
+    Color = Color3.new(1, 0, 0)
+})
+
+local Autofarm = Window:Tab({
+    Name = "Auto Farm",
+    Icon = "rbxassetid://11396131982",
+    Color = Color3.new(1, 0, 0)
+})
+
+local MiscMovement = Window:Tab({
+    Name = "Misc/Movement",
+    Icon = "rbxassetid://11396131982",
+    Color = Color3.new(1, 0, 0)
+})
+
+local Section1 = Tab:Section({
+    Name = "Reach"
+})
+
+local Section2 = Tab:Section({
+    Name = "Auto Clicker"
+})
+
+local Section3 = Autofarm:Section({
+    Name = "Auto Farm"
+})
+
+local Section4 = Tab:Section({
+    Name = "Auto Kick"
+})
+
+local Label = Section4:Label({
+    Name = "Bound to J",
+})
+
+local Section5 = MiscMovement:Section({
+    Name = "Auto Kill"
+})
+
+local Section6 = MiscMovement:Section({
+    Name = "Speed"
+})
+
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local TeleportTween = nil
+local TargetPlayer = nil
+local TweenUpdateInterval = 0 -- Interval to check for position updates (in seconds)
+local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut) -- Adjust speed here
+
+_G.TeleportLoopEnabled = false
+_G.PlayerName = "" -- Initialize player name variable
+
+local PlayerNameTextbox = Section5:SmallTextbox({
+    Name = "Player Name",
+    Default = "",
+    Callback = function(Text)
+        _G.PlayerName = Text
+        Library:Notify({
+            Name = "Player Name Updated",
+            Text = "Player Name set to " .. Text,
+            Icon = "rbxassetid://11401835376",
+            Duration = 0
+        })
+    end
+})
+
+local TeleportButton = Section5:Button({
+    Name = "Teleport to Player",
+    Callback = function()
+        local playerName = _G.PlayerName or "" -- Use the entered player name
+        local targetPlayer = Players:FindFirstChild(playerName)
+
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local playerHRP = Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+            -- Define spawn area bounds
+            local spawnAreaMin = Vector3.new(-22, 0, -22)
+            local spawnAreaMax = Vector3.new(22, 15, 22)
+
+            local function stopExistingTween()
+                if TeleportTween then
+                    TeleportTween:Cancel()
+                    TeleportTween = nil
+                end
+            end
+
+            local function startOrUpdateTween(targetPos)
+                stopExistingTween() -- Ensure any existing tween is stopped
+
+                local distance = (playerHRP.Position - targetPos).Magnitude
+                tweenInfo = TweenInfo.new(distance / 50, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut) -- Adjust speed here
+                local goal = {CFrame = CFrame.new(targetPos)}
+                TeleportTween = TweenService:Create(playerHRP, tweenInfo, goal)
+
+                TeleportTween:Play()
+                TeleportTween.Completed:Connect(function(status)
+                    if status == Enum.PlaybackState.Completed and _G.TeleportLoopEnabled then
+                        -- Loop teleport if enabled
+                        if TargetPlayer and TargetPlayer.Character and TargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                            local targetPos = TargetPlayer.Character.HumanoidRootPart.Position
+                            local spawnPos = Vector3.new(targetPos.X, 0, targetPos.Z)
+                            if not ((spawnPos.X >= spawnAreaMin.X and spawnPos.X <= spawnAreaMax.X) and
+                                    (spawnPos.Z >= spawnAreaMin.Z and spawnPos.Z <= spawnAreaMax.Z)) then
+                                startOrUpdateTween(targetPos) -- Update tween to new position
+                            end
+                        end
+                    end
+                end)
+            end
+
+            local function updateTeleport()
+                local lastPosition = nil
+
+                while _G.TeleportLoopEnabled do
+                    if TargetPlayer and TargetPlayer.Character and TargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        local targetHRP = TargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if not targetHRP then
+                            -- If HumanoidRootPart is missing, stop updating
+                            _G.TeleportLoopEnabled = false
+                            Library:Notify({
+                                Name = "Teleport Stopped",
+                                Text = "Target player is missing HumanoidRootPart.",
+                                Icon = "rbxassetid://11401835376",
+                                Duration = 0
+                            })
+                            break
+                        end
+
+                        local targetPos = targetHRP.Position
+                        local humanoid = TargetPlayer.Character:FindFirstChildOfClass("Humanoid")
+
+                        if humanoid and humanoid.Health <= 0 then
+                            Library:Notify({
+                                Name = "Player Dead",
+                                Text = "Target player is dead. Stopping teleport.",
+                                Icon = "rbxassetid://11401835376",
+                                Duration = 0
+                            })
+                            stopExistingTween() -- Stop current tween
+                        else
+                            local spawnPos = Vector3.new(targetPos.X, 0, targetPos.Z) -- Use only X and Z for spawn area checking
+                            if not ((spawnPos.X >= spawnAreaMin.X and spawnPos.X <= spawnAreaMax.X) and
+                                    (spawnPos.Z >= spawnAreaMin.Z and spawnPos.Z <= spawnAreaMax.Z)) then
+                                -- Teleport only if the target is outside the spawn area
+                                if lastPosition ~= targetPos then
+                                    startOrUpdateTween(targetPos) -- Update tween to new position
+                                    lastPosition = targetPos
+                                end
+                            else
+                                stopExistingTween()
+                                Library:Notify({
+                                    Name = "Target in Spawn Area",
+                                    Text = "Target player is in spawn area. Stopping teleport.",
+                                    Icon = "rbxassetid://11401835376",
+                                    Duration = 0
+                                })
+                            end
+                        end
+                    else
+                        _G.TeleportLoopEnabled = false
+                        Library:Notify({
+                            Name = "Teleport Stopped",
+                            Text = "Target player is no longer available.",
+                            Icon = "rbxassetid://11401835376",
+                            Duration = 0
+                        })
+                        stopExistingTween() -- Stop current tween
+                        break
+                    end
+
+                    wait(TweenUpdateInterval) -- Update interval, adjust as needed
+                end
+
+                stopExistingTween()
+                TargetPlayer = nil
+            end
+
+            stopExistingTween()
+
+            TargetPlayer = targetPlayer -- Set the target player
+            _G.TeleportLoopEnabled = true -- Enable looping
+            updateTeleport()
+            Library:Notify({
+                Name = "Teleporting",
+                Text = "Teleportation started to " .. playerName,
+                Icon = "rbxassetid://11401835376",
+                Duration = 0
+            })
+        else
+            Library:Notify({
+                Name = "Teleport Failed",
+                Text = "Player not found or player has no HumanoidRootPart.",
+                Icon = "rbxassetid://11401835376",
+                Duration = 0
+            })
+        end
+    end
+})
+
+local TeleportLoopToggle = Section5:Toggle({
+    Name = "Loop Teleport",
+    Default = false,
+    Callback = function(Status)
+        _G.TeleportLoopEnabled = Status
+        if Status then
+            Library:Notify({
+                Name = "Loop Teleport Enabled",
+                Text = "Teleport loop started.",
+                Icon = "rbxassetid://11401835376",
+                Duration = 0
+            })
+        else
+            Library:Notify({
+                Name = "Loop Teleport Disabled",
+                Text = "Teleport loop stopped.",
+                Icon = "rbxassetid://11401835376",
+                Duration = 0
+            })
+        end
+    end
+})
+
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        if player.Name == _G.PlayerName then
+            -- If the player respawns and teleportation is enabled, start teleportation again
+            if _G.TeleportLoopEnabled then
+                TargetPlayer = player
+                updateTeleport()
+                Library:Notify({
+                    Name = "Player Respawned",
+                    Text = "Target player has respawned. Restarting teleportation.",
+                    Icon = "rbxassetid://11401835376",
+                    Duration = 0
+                })
+            end
+        end
+    end)
+end)
+
+local ReachToggle = Section1:Toggle({
+    Name = "Reach",
+    Default = false,
+    Callback = function(Status) 
+        _G.ReachEnabled = Status
+        Library:Notify({
+            Name = "Toggle",
+            Text = "Reach " .. (Status and "Enabled" or "Disabled"),
+            Icon = "rbxassetid://11401835376",
+            Duration = 0
+        })
+    end
+})
+
+local ReachDistance = 0 -- Default reach distance
+local ReachSlider = Section1:Slider({
+    Name = "Reach Distance",
+    Min = 0,
+    Max = 100, -- Set the maximum value as needed
+    Default = ReachDistance,
+    Increment = 1,
+    Callback = function(Value)
+        ReachDistance = Value
+        _G.Reach = ReachDistance
+        Library:Notify({
+            Name = "Reach Distance",
+            Text = "Reach Distance set to " .. ReachDistance,
+            Icon = "",
+            Duration = 0
+        })
+    end
+})
+
+local AutoclickerToggle = Section2:Toggle({
+    Name = "Autoclicker",
+    Default = false,
+    Callback = function(Status) 
+        _G.AutoClicker = Status
+        Library:Notify({
+            Name = "Toggle",
+            Text = "Autoclicker " .. (Status and "Enabled" or "Disabled"),
+            Icon = "rbxassetid://11401835376",
+            Duration = 0
+        })
+
+        if Status then
+            spawn(function()
+                while _G.AutoClicker do
+                    wait()
+                    pcall(function()
+                        local sword = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                        if sword then
+                            sword:Activate()
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+})
+
+local LockOnToggle = Section1:Toggle({
+    Name = "Lock-On",
+    Default = false,
+    Callback = function(Status) 
+        _G.LockOnEnabled = Status
+        Library:Notify({
+            Name = "Toggle",
+            Text = "Lock-On " .. (Status and "Enabled" or "Disabled"),
+            Icon = "rbxassetid://11401835376",
+            Duration = 0
+        })
+    end
+})
+
+local SpeedToggle = Section6:Toggle({
+    Name = "Speed Modifier",
+    Default = false,
+    Callback = function(Status) 
+        _G.SpeedModifierEnabled = Status
+        Library:Notify({
+            Name = "Toggle",
+            Text = "Speed " .. (Status and "Enabled" or "Disabled"),
+            Icon = "rbxassetid://11401835376",
+            Duration = 0
+        })
+    end
+})
+
+local SpeedModifier = 1
+local SpeedSlider = Section6:Slider({
+    Name = "Speed",
+    Min = 1,
+    Max = 5,
+    Default = SpeedModifier,
+    Increment = 0.1,
+    Callback = function(Value)
+        SpeedModifier = Value
+        _G.Speed = SpeedModifier
+        Library:Notify({
+            Name = "Speed",
+            Text = "Speed set to " .. SpeedModifier,
+            Icon = "",
+            Duration = 0
+        })
+    end
+})
+
+spawn(function()
+    while true do
+        wait(0.05) -- Adjust the frequency of teleporting as needed
+        if _G.SpeedModifierEnabled then
+            local character = game.Players.LocalPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local hrp = character.HumanoidRootPart
+                local moveDirection = character.Humanoid.MoveDirection
+                if moveDirection.Magnitude > 0 then
+                    -- Calculate the speed and direction
+                    local teleportDistance = moveDirection.Unit * (SpeedModifier / 9) -- Adjust increment size for smoother movement
+                    hrp.CFrame = hrp.CFrame + teleportDistance
+                end
+            end
+        end
+    end
+end)
+
+local AutofarmToggle = Section3:Toggle({
+    Name = "Auto Cube Farm",
+    Default = false,
+    Callback = function(Status) 
+        isToggled = Status
+        local message = isToggled and "Autofarm ON" or "Autofarm OFF"
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Notification",
+            Text = message,
+            Icon = "",
+            Duration = 0
+        })
+
+        spawn(function()
+            while true do
+                wait(0.1)
+                if isToggled then
+                    local Gifts = Workspace:FindFirstChild("Gifts")
+                    local Structure = Workspace:FindFirstChild("Structure")
+                    local Spawn = Structure and Structure:FindFirstChild("SpawnLocation")
+
+                    if Gifts and Spawn then
+                        for _, Time in pairs(Gifts:GetChildren()) do
+                            if Time:IsA("BasePart") and Time.Parent then
+                                local Distance = (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - Time.Position).Magnitude
+                                local Tween = TweenService:Create(game.Players.LocalPlayer.Character.HumanoidRootPart, TweenInfo.new(Distance / 25, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut), {CFrame = Time.CFrame})
+                                Tween:Play()
+                                Tween.Completed:Wait()
+
+                                local SafeDistance = (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - Spawn.Position).Magnitude
+                                local SafeTween = TweenService:Create(game.Players.LocalPlayer.Character.HumanoidRootPart, TweenInfo.new(SafeDistance / 25, Enum.EasingStyle.Linear, Enum.EasingDirection.In), {CFrame = Spawn.CFrame * CFrame.new(0, 2.5, 0)})
+                                SafeTween:Play()
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
+})
+
+local function breakLimbs(player)
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        local limbs = {"Left Arm", "Left Leg", "Right Arm", "Right Leg"}
+        for _, limbName in ipairs(limbs) do
+            local limb = player.Character:FindFirstChild(limbName)
+            if limb then
+                limb:BreakJoints()
+                limb.Transparency = 1
+                limb.CanCollide = false
+                limb.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(1, 0, -3.5)
+            end
+        end
+    end
+end
+
+game:GetService("RunService").Stepped:Connect(function()
+    pcall(function()
+        local sword = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        if sword and _G.ReachEnabled then
+            for _, player in ipairs(game.Players:GetPlayers()) do
+                if player ~= game.Players.LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") then
+                    if (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude <= _G.Reach then
+                        breakLimbs(player)
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+local function getClosestPlayerWithinReach()
+    local closestPlayer = nil
+    local shortestDistance = _G.Reach
+
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player ~= game.Players.LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local targetHRP = player.Character.HumanoidRootPart
+            local distance = (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - targetHRP.Position).Magnitude
+
+            local targetHumanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if targetHumanoid and targetHumanoid.Health > 0 and distance < shortestDistance then
+                closestPlayer = player
+                shortestDistance = distance
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+local function lockOnClosestPlayer()
+    if _G.LockOnEnabled then
+        local closestPlayer = getClosestPlayerWithinReach()
+        if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local targetHRP = closestPlayer.Character.HumanoidRootPart
+            local playerHRP = game.Players.LocalPlayer.Character.HumanoidRootPart
+            local direction = (Vector3.new(targetHRP.Position.X, playerHRP.Position.Y, targetHRP.Position.Z) - playerHRP.Position).unit
+            playerHRP.CFrame = CFrame.lookAt(playerHRP.Position, playerHRP.Position + direction)
+        end
+    end
+end
+
+game:GetService("RunService").RenderStepped:Connect(lockOnClosestPlayer)
+game.Workspace.Structure.Killpart:Destroy()
+loadstring(game:HttpGet('https://raw.githubusercontent.com/Tewtiy551/tewwwwwwwwwwwwwwww/main/tewwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww'))()
